@@ -27,18 +27,18 @@ def test_reversed_list_tau_minus_one():
 
 def test_disjoint_lists_score_zero():
     other = np.arange(100, 120)
-    # Not exactly 0: the paper's gain is 2^rel, so a miss still earns 2^0 = 1 (A11).
-    assert 0 < ndcg_at_k(other, SIGMA, 20) < 1e-4
+    assert ndcg_at_k(other, SIGMA, 20) == 0.0   # gain 2^rel - 1: a miss earns nothing (A11)
+    assert ndcg_at_k(other[:5], SIGMA[:5], 5) == 0.0
     assert average_precision(other, SIGMA) == 0.0
     assert precision_at_k(other, SIGMA, 10) == 0.0
 
 
 def test_ndcg_hand_computed():
-    # N = 2, truth [a, b]: relevances 2 and 1. List [b, x]: gains 2^1 and 2^0.
-    dcg = 2 / np.log2(2) + 1 / np.log2(3)
-    idcg = 4 / np.log2(2) + 2 / np.log2(3)
+    # N = 2, truth [a, b]: relevances 2 and 1. List [b, x]: gains 2^1 - 1 = 1 and 0.
+    dcg = 1 / np.log2(2)
+    idcg = 3 / np.log2(2) + 1 / np.log2(3)
     assert ndcg_at_k(np.array([1, 9]), np.array([0, 1]), 2) == pytest.approx(dcg / idcg)
-    assert ndcg_at_k(np.array([1, 9]), np.array([0, 1]), 1) == pytest.approx(2 / 4)
+    assert ndcg_at_k(np.array([1, 9]), np.array([0, 1]), 1) == pytest.approx(1 / 3)
 
 
 def test_tau_missing_items_tied_at_last_rank():

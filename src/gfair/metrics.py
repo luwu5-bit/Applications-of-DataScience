@@ -12,16 +12,17 @@ def ndcg_at_k(sigma: np.ndarray, sigma_u: np.ndarray, k: int) -> float:
     """nDCG@k with Borda relevance.
 
     The ground-truth item at position p (1-based) has relevance N - p + 1, any
-    other item 0. Gain is 2^rel as written in the paper (not 2^rel - 1, see
-    ASSUMPTIONS.md A11), discount log2(pos + 1), normalized by the ideal DCG@k.
+    other item 0. Gain is 2^rel - 1, so an item outside the ground truth earns
+    nothing (the paper prints 2^rel, see ASSUMPTIONS.md A11), discount
+    log2(pos + 1), normalized by the ideal DCG@k.
     """
     N = len(sigma_u)
     top = np.asarray(sigma)[:k]
     hit = top[:, None] == np.asarray(sigma_u)[None, :]          # (k, N)
     rel = (hit * (N - np.arange(N))).sum(axis=1)                # 0 if not in sigma_u
     ideal = np.clip(N - np.arange(k), 0, None)                  # N, N-1, ...
-    dcg = (2.0 ** rel / np.log2(np.arange(len(top)) + 2)).sum()
-    idcg = (2.0 ** ideal / np.log2(np.arange(k) + 2)).sum()
+    dcg = ((2.0 ** rel - 1) / np.log2(np.arange(len(top)) + 2)).sum()
+    idcg = ((2.0 ** ideal - 1) / np.log2(np.arange(k) + 2)).sum()
     return float(dcg / idcg)
 
 

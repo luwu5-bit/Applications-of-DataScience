@@ -49,7 +49,9 @@ dominate each member's top-20 and differ between members). These variants were
 diagnostics only; no setting was changed because of them.
 
 ### The paper's nDCG values do not fit its printed formula
-The paper defines gain 2^rel with rel = N - p + 1 (up to 20). Then nDCG@1 is
+The paper defines gain 2^rel with rel = N - p + 1 (up to 20). We use 2^rel - 1 so
+that a movie outside the ground truth earns nothing (A11); at N = 20 both forms
+give the same numbers to 3 decimals. Under either form nDCG@1 is about
 2^(rel - 20): 1 only if the first group item is the member's own number 1, 0.5
 if it is their number 2, and so on. nDCG@1 must therefore be far below P@1.
 In the paper's Table 1 they are almost equal (AVG group utility: nDCG@1 0.694,
@@ -61,7 +63,7 @@ Same groups and lists, different gain (diagnostic, RND, nDCG@20 fairness):
 
 | Gain | AVG | LM | NPO | XPO |
 |---|---|---|---|---|
-| 2^rel (paper text, our default) | 0.204 | 0.093 | 0.142 | 0.224 |
+| 2^rel - 1 (our default; 2^rel as printed gives the same) | 0.204 | 0.093 | 0.142 | 0.224 |
 | rel (linear) | 0.425 | 0.313 | 0.407 | 0.474 |
 | 1 if in ground truth (binary) | 0.455 | 0.365 | 0.463 | 0.491 |
 
