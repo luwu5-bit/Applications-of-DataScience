@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data (never commit; see CLAUDE.md)
+data/raw/**
+data/processed/**
+!data/raw/ml-1m/.gitkeep
+!data/processed/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Smoke-run outputs
+results/*_smoke.csv

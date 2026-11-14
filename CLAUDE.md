@@ -1,8 +1,7 @@
 # CLAUDE.md: Group Fairness Replication
 
 WU Vienna course project (Applications of Data Science). We replicate
-Sacharidis (2019), *Top-N Group Recommendations with Fairness* (ACM SAC '19,
-https://doi.org/10.1145/3297280.3297442), and extend it to larger and smaller groups.
+Sacharidis (2019), *Top-N Group Recommendations with Fairness*. Full paper text: docs/paper.md, read it when a method or metric detail is unclear., and extend it to larger and smaller groups.
 
 Deadlines: **18 Nov 2026** final presentation (results + critical evaluation),
 **22 Nov 2026** final report (max 5 pages excl. code) and code submission.

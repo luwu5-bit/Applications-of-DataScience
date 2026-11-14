@@ -1,0 +1,52 @@
+# Single source of truth for all experiment settings.
+# Every value that is an assumption is explained in ASSUMPTIONS.md.
+
+seed: 42                      # global seed; groups, candidates and weights derive from it
+
+data:
+  raw_dir: data/raw/ml-1m
+  predictions_path: data/processed/predictions.npy   # observed ratings + MF predictions for the rest
+
+mf:                           # biased MF trained with ALS (own numpy code); see ASSUMPTIONS.md A3
+  n_factors: 50
+  n_epochs: 20                # ALS sweeps (one sweep = update all users, then all items)
+  reg: 0.06                   # ridge penalty, scaled by each user's / item's number of ratings
+  clip: [1.0, 5.0]            # filled-in predictions are clipped to the rating scale (A9)
+  test_fraction: 0.1          # hold-out only for the one-off RMSE sanity check
+
+n_candidates: 200             # random candidate movies per group
+n_groups: 100                 # groups per setting
+smoke_n_groups: 5             # used by --smoke
+
+monte_carlo:
+  n_samples: 10000            # S
+  batch_size: 1000            # weight vectors scored per batch (S x items matrix)
+
+methods: [AVG, LM, NPO, XPO]  # optional later: MUL, MAX, BORDA
+
+metrics:
+  ndcg_ks: [1, 5, 10, 20]     # the primary metric is nDCG@20
+  precision_ks: [1, 5, 10, 20]
+
+experiments:
+  E1:                         # core: Tables 1/2
+    m: [5]
+    N: [20]
+    group_types: [RND, SIM]
+  E2:                         # group size, paper range: Fig. 2/3
+    m: [2, 3, 4, 5, 6, 7, 8]
+    N: [20]
+    group_types: [RND, SIM]
+  E3:                         # group size extension (our contribution)
+    m: [2, 3, 5, 8, 10, 15, 20, 30]
+    N: [20]
+    group_types: [RND, SIM]
+  E4:                         # top-N (optional): Fig. 4/5
+    m: [5]
+    N: [5, 10, 20, 50, 100]
+    group_types: [RND, SIM]
+  E5:                         # Monte Carlo sensitivity
+    m: [5, 20]
+    N: [20]
+    group_types: [RND]
+    n_samples: [1000, 5000, 10000, 50000]

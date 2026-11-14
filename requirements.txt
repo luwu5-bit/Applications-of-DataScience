@@ -1,0 +1,10 @@
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+pyyaml>=6.0
+matplotlib>=3.8
+pytest>=8.0
+# No MF library: matrix factorization is implemented in src/gfair/mf.py (numpy only).
+
+# Installs src/gfair in editable mode so scripts and tests can `import gfair`.
+-e .
