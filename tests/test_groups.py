@@ -54,6 +54,27 @@ def test_sim_group_is_seed_plus_most_similar():
         assert sim[group[1]] == sim.max()
 
 
+def test_sim_group_adds_most_similar_to_whole_group():
+    # Unit vectors, so dot products are the similarities. User 1 is closest to
+    # the seed (user 0). User 2 is second closest to the seed, but user 3 is
+    # closer to the pair {0, 1} on average, so user 3 must be added next.
+    C = np.array([
+        [1.0, 0.0, 0.0],
+        [0.8, 0.6, 0.0],
+        [0.7, -0.714, 0.0],
+        [0.6, 0.8, 0.0],
+        [-1.0, 0.0, 0.0],
+    ], dtype=np.float32)
+    C /= np.linalg.norm(C, axis=1, keepdims=True)
+
+    class FixedSeed:
+        def integers(self, n):
+            return 0
+
+    assert sample_sim_group(C, 3, FixedSeed()).tolist() == [0, 1, 3]
+    assert sample_sim_group(C, 5, FixedSeed()).tolist()[-1] == 4
+
+
 def test_sim_group_reproducible():
     C = centered_ratings(_ratings(), 4, 4)
     a = sample_sim_group(C, 3, np.random.default_rng(5))

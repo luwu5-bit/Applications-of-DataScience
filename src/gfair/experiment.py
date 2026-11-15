@@ -7,7 +7,7 @@ import pandas as pd
 
 from gfair import aggregators, metrics
 from gfair.groups import sample_candidates, sample_rnd_group, sample_sim_group
-from gfair.pareto import rank_matrix
+from gfair.pareto import ground_truth, rank_matrix
 
 # One row per (group, method, metric). pool_size is NaN for AVG / LM.
 RESULT_COLUMNS = [
@@ -88,7 +88,7 @@ def run_setting(
 
         preds = predictions[np.ix_(members, candidates)]            # (m, 200)
         ranks = rank_matrix(preds)                                  # (200, m)
-        truth = np.argsort(ranks, axis=0)[:N].T                     # (m, N), best first
+        truth = ground_truth(preds, N)                              # (m, N), best first
 
         for method in cfg["methods"]:
             info: dict = {}

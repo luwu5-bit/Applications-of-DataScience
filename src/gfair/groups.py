@@ -40,15 +40,24 @@ def user_similarity_to(seed_user: int, centered: np.ndarray) -> np.ndarray:
 def sample_sim_group(
     centered: np.ndarray, m: int, rng: np.random.Generator
 ) -> np.ndarray:
-    """Random seed user plus the m - 1 users most similar to the seed (A5).
+    """Random seed user, then grow the group one user at a time (A5).
 
-    The seed user is first in the returned array, then by decreasing similarity.
+    Each step adds the user with the highest mean similarity to all members so
+    far (the paper: "adding the most similar user to the group"). Ties go to
+    the lower user index. Members are returned in the order they were added.
     """
     seed_user = int(rng.integers(centered.shape[0]))
-    sim = user_similarity_to(seed_user, centered)
-    sim[seed_user] = -np.inf                                    # never pick the seed twice
-    others = np.argsort(-sim, kind="stable")[: m - 1]
-    return np.concatenate(([seed_user], others))
+    members = [seed_user]
+    taken = np.zeros(centered.shape[0], dtype=bool)
+    taken[seed_user] = True
+    # Sum of similarities to the current members; same argmax as the mean.
+    total = user_similarity_to(seed_user, centered).astype(np.float64)
+    while len(members) < m:
+        nxt = int(np.argmax(np.where(taken, -np.inf, total)))
+        members.append(nxt)
+        taken[nxt] = True
+        total += user_similarity_to(nxt, centered)
+    return np.array(members)
 
 
 def sample_candidates(

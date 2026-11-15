@@ -4,24 +4,33 @@ Conventions used across the package:
 - `preds` has shape (m, n_items): (predicted) ratings of the group members for the
   candidates (rows = members, columns = candidates in ascending item id).
 - `ranks` (R) has shape (n_items, m): R[i, u] = rank of item i for member u,
-  1 = best. Row i is the item vector r(i) from the paper.
+  1 = best. Row i is the item vector r(i) from the paper. Ranks can be tied
+  (ASSUMPTIONS.md, A4).
 - Items are referred to by their position in the candidate array.
 """
 
 import numpy as np
+from scipy.stats import rankdata
 
 
 def rank_matrix(preds: np.ndarray) -> np.ndarray:
-    """Per-member ranks of all candidates, 1 = best, ties broken by position.
+    """Per-member ranks of all candidates, 1 = best, equal ratings share a rank.
 
-    Input (m, n_items) ratings, output (n_items, m) integer ranks.
+    The paper assumes "that ties in ranks are possible". Movies a member rates
+    equally get the average of the ranks they span (two movies tied for places
+    2 and 3 both get 2.5), the usual convention when ranks are summed (A4).
+    Input (m, n_items) ratings, output (n_items, m) float ranks.
     """
-    m, n = preds.shape
-    # Stable sort: among equal ratings the lower position (= lower item id) wins.
-    order = np.argsort(-preds, axis=1, kind="stable")
-    ranks = np.empty((m, n), dtype=np.int64)
-    ranks[np.arange(m)[:, None], order] = np.arange(1, n + 1)
-    return ranks.T
+    return rankdata(-preds, method="average", axis=1).T
+
+
+def ground_truth(preds: np.ndarray, N: int) -> np.ndarray:
+    """Each member's top-N candidates, best first. Shape (m, N).
+
+    A list needs a strict order, so here equal ratings are ordered by position
+    (= item id): stable sort. Used only for evaluation, never by a recommender.
+    """
+    return np.argsort(-preds, axis=1, kind="stable")[:, :N]
 
 
 def dom_counts(ranks: np.ndarray) -> np.ndarray:

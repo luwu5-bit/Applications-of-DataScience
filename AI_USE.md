@@ -11,3 +11,5 @@ Required disclosure under WU guidelines. One line per use.
 | 2026-11-15 | Claude Code (Claude Fable 5.2) | Checked all figures against a fresh recomputation; drafted the presentation slides and speaker notes (presentation/group_fairness_presentation.pptx) |
 | 2026-11-15 | Claude (chat) and Claude Code (Claude Fable 5.2) | Cross-checked ASSUMPTIONS.md against the paper text; added the "Paper says" and "Status" columns |
 | 2026-11-15 | Claude Code (Claude Fable 5.2) | Diagnostic run for A5 (SIM groups by similarity to the whole group instead of the seed); result written to docs/replication_notes.md |
+| 2026-11-15 | Claude Code (Claude Fable 5.2) | Switched nDCG gain (A11) and SIM group building (A5) back to the paper, updated tests, reran E1/E2/E3/E5, regenerated figures, updated notes and slides; diagnostic run with tied ranks (A4) |
+| 2026-11-15 | Claude Code (Claude Fable 5.2) | Switched ranks to tied ranks (A4) and reran E1/E2/E3/E5; diagnostics on tie order, MF random start, rating matrix and nDCG gain; rewrote docs/replication_notes.md, regenerated figures, updated slides and notes |

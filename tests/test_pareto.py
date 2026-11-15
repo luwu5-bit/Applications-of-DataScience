@@ -1,15 +1,26 @@
 import numpy as np
 
-from gfair.pareto import dom_counts, npo_pool, rank_matrix, xpo_pool
+from gfair.pareto import dom_counts, ground_truth, npo_pool, rank_matrix, xpo_pool
 
 
-def test_rank_matrix_shape_and_tie_break():
+def test_rank_matrix_shape_and_tied_ranks():
     preds = np.array([[5.0, 3.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]])  # (m=2, items=4)
     ranks = rank_matrix(preds)
     assert ranks.shape == (4, 2)
-    # member 0: item 0 best, then item 3, then the tie 1 vs 2 goes to the lower id
-    assert ranks[:, 0].tolist() == [1, 3, 4, 2]
+    # member 0: item 0 best, then item 3; items 1 and 2 share places 3 and 4 (A4)
+    assert ranks[:, 0].tolist() == [1, 3.5, 3.5, 2]
     assert ranks[:, 1].tolist() == [4, 3, 2, 1]
+
+
+def test_equally_rated_items_do_not_dominate_each_other():
+    # Items 0 and 1 get the same rating from both members; item 2 is worse for both.
+    preds = np.array([[5.0, 5.0, 2.0], [4.0, 4.0, 1.0]])
+    assert dom_counts(rank_matrix(preds)).tolist() == [0, 0, 2]
+
+
+def test_ground_truth_breaks_ties_by_item_id():
+    preds = np.array([[5.0, 3.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]])
+    assert ground_truth(preds, 3).tolist() == [[0, 3, 1], [3, 2, 1]]
 
 
 def test_dom_counts_toy(toy_ranks):

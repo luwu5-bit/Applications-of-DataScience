@@ -25,6 +25,7 @@ pytest -q                                    # must pass before any experiment r
 python scripts/run_experiment.py --exp E1 --smoke   # 5 groups, quick check
 python scripts/run_experiment.py --exp E1
 python scripts/make_figures.py
+python scripts/diagnostics/tie_order.py      # optional sensitivity checks, see docs/replication_notes.md
 ```
 
 ## Experiments

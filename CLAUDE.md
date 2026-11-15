@@ -47,7 +47,7 @@ Member utility = similarity of group list sigma to member's ground truth sigma_u
 
 | Metric | Definition we use |
 |---|---|
-| nDCG@k (primary, k = 20) | relevance of ground-truth item at position p = N - p + 1, else 0; gain 2^rel - 1; discount log2(pos + 1); normalized by ideal DCG@k |
+| nDCG@k (primary, k = 20) | relevance of ground-truth item at position p = N - p + 1, else 0; gain 2^rel (as printed in the paper); discount log2(pos + 1); normalized by ideal DCG@k |
 | AP | sum over k of P@k * [sigma[k] in sigma_u], divided by N |
 | P@k | \|sigma[1:k] ∩ sigma_u\| / k, for k in {1, 5, 10, 20} |
 | Kendall's tau | items missing from a list are tied at the last rank; (concordant - discordant) / number of pairs |
@@ -63,10 +63,12 @@ silently; if you change one, update that file and the config.
 - **MF:** explicit-rating MF (e.g. biased SVD), fixed hyperparameters in the config,
   report train/test RMSE once as a sanity check.
 - **Ranks:** computed exactly over all 200 candidates (no top-N' approximation
-  needed in the experiments). Ties are broken by item id.
+  needed in the experiments). Equally rated movies share the average rank (the
+  paper allows ties in ranks); only the ground-truth list breaks ties by item id.
 - **SIM groups:** start from a random seed user, then repeatedly add the user with
-  the highest mean-centered cosine similarity to the seed user. (The paper does not
-  say whether similarity is to the seed or to the whole group; document the choice.)
+  the highest mean mean-centered cosine similarity to all members so far. (The paper
+  says "adding the most similar user to the group"; how similarity to a group is
+  measured is our choice, see ASSUMPTIONS.md A5.)
 - **RND groups:** users sampled uniformly without replacement.
 - **Seeds:** one global seed in the config; groups, candidates and weights derive from it.
 
