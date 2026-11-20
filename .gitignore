@@ -25,3 +25,11 @@ results/*_smoke.csv
 # Raw per-experiment results are large (35-290 MB) and reproducible from the seed;
 # only the averaged tables in results/summary/ and results/diagnostics/ are committed.
 results/E*.csv
+
+# LaTeX build files
+report/*.aux
+report/*.log
+report/*.out
+report/*.fls
+report/*.fdb_latexmk
+report/*.synctex.gz

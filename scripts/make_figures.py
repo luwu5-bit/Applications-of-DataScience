@@ -178,6 +178,48 @@ def fig_difference(a: str, b: str, metric: str) -> None:
     save(fig, f"{a.lower()}_minus_{b.lower()}_vs_group_size{suffix}.png")
 
 
+def fig_xpo_lead_by_metric() -> None:
+    """E3: XPO - AVG fairness by group size under four metrics, RND and SIM side by side.
+
+    The report's main figure: the metrics that count how much of each member's
+    top 20 reaches the list (linear nDCG, P@20, AP) agree; the printed gain 2^rel
+    is drawn as a grey dashed reference.
+    """
+    series = [  # metric, label, colour, marker, linestyle
+        ("ndcg_lin@20", "nDCG@20, linear gain", "#2a78d6", "o", "-"),
+        ("p@20", "P@20", "#eb6834", "s", "-"),
+        ("ap", "AP", "#1baf7a", "^", "-"),
+        ("ndcg@20", "nDCG@20, gain $2^{rel}$ (as printed)", MUTED, "x", "--"),
+    ]
+    data = {metric: load("E3", metric) for metric, *_ in series}
+    ms = sorted(data["p@20"].m.unique())
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.9), sharey=True)
+    for ax, gt in zip(axes, ["RND", "SIM"]):
+        for metric, label, color, marker, ls in series:
+            df = data[metric]
+            stats = []
+            for m in ms:
+                wide = df[(df.group_type == gt) & (df.m == m)].pivot(index="group_id", columns="method", values="fairness")
+                stats.append(mean_ci(wide["XPO"] - wide["AVG"]))
+            mean, ci = np.array(stats).T
+            ax.fill_between(ms, mean - ci, mean + ci, color=color, alpha=0.12, linewidth=0)
+            ax.plot(ms, mean, ls, color=color, marker=marker, label=label,
+                    markeredgecolor=color if marker == "x" else SURFACE, markeredgewidth=1 if marker != "x" else 1.5)
+        ax.axhline(0, color=INK, linewidth=1)
+        ax.axvspan(1.8, 8.5, color=GRID, alpha=0.35, linewidth=0)
+        ax.text(2.0, 0.088, "paper's range (m = 2 to 8)", color=MUTED, fontsize=8, va="top")
+        ax.text(0.98, 0.04, "AVG fairer", color=MUTED, fontsize=8, ha="right", transform=ax.transAxes)
+        m_axis(ax, ms)
+        ax.set_title(GROUP_LABEL[gt])
+        ax.set_ylim(-0.06, 0.09)
+    axes[0].set_ylabel("Fairness XPO minus AVG")
+    axes[1].legend(loc="upper right", fontsize=8, frameon=False)
+    fig.text(0.5, -0.02, "Paired per group; mean of 100 groups, each averaged over 20 MF fits; bands: 95% CI over groups.",
+             ha="center", color=MUTED, fontsize=8.5)
+    fig.tight_layout()
+    save(fig, "xpo_lead_by_metric.png")
+
+
 def fig_pool_size() -> None:
     """E3: candidate pool size of NPO and XPO, misery-free items of AWM, and the XPO level x."""
     df = load("E3", "ndcg@20")
@@ -248,6 +290,7 @@ def main() -> None:
         fig_vs_group_size("group_utility", metric)
         fig_difference("XPO", "AVG", metric)
         fig_difference("AWM", "AVG", metric)
+    fig_xpo_lead_by_metric()
     fig_pool_size()
     fig_mc_sensitivity()
 
