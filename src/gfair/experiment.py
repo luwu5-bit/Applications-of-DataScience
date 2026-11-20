@@ -35,6 +35,7 @@ def group_rng(seed: int, group_type: str, m: int, N: int, group_id: int) -> np.r
 def member_utilities(
     sigma: np.ndarray, truth: np.ndarray, N: int, ndcg_ks: list[int], precision_ks: list[int],
     preds: np.ndarray | None = None, misery_threshold: float | None = None,
+    ndcg_linear_ks: list[int] = (),
 ) -> dict[str, np.ndarray]:
     """All metrics of the group list against every member's ground truth.
 
@@ -46,6 +47,7 @@ def member_utilities(
     out: dict[str, list[float]] = {"tau": [], "ap": []}
     out |= {f"p@{k}": [] for k in precision_ks if k <= N}
     out |= {f"ndcg@{k}": [] for k in ndcg_ks if k <= N}
+    out |= {f"ndcg_lin@{k}": [] for k in ndcg_linear_ks if k <= N}   # A20
     if preds is not None:
         out["no_misery"] = [metrics.no_misery_share(sigma, r, misery_threshold) for r in preds]
         out["rating"] = [metrics.mean_rating(sigma, r) for r in preds]
@@ -58,6 +60,9 @@ def member_utilities(
         for k in ndcg_ks:
             if k <= N:
                 out[f"ndcg@{k}"].append(metrics.ndcg_at_k(sigma, sigma_u, k))
+        for k in ndcg_linear_ks:
+            if k <= N:
+                out[f"ndcg_lin@{k}"].append(metrics.ndcg_at_k(sigma, sigma_u, k, gain="linear"))
     return {name: np.array(vals) for name, vals in out.items()}
 
 
@@ -128,6 +133,7 @@ def run_setting(
             utils = member_utilities(
                 sigma, truth, N, cfg["metrics"]["ndcg_ks"], cfg["metrics"]["precision_ks"],
                 preds=preds, misery_threshold=cfg["metrics"]["misery_threshold"],
+                ndcg_linear_ks=cfg["metrics"].get("ndcg_linear_ks", []),
             )
             for metric, values in utils.items():
                 rows.append({

@@ -2,8 +2,8 @@
 
 Usage: python scripts/make_figures.py
 
-Figures are drawn for the primary metric nDCG@20, for P@20 (file names end
-in _p20) and for the rating-based no-misery share (A18, _nomisery). Every value is first averaged per group over the MF fits (A15);
+Figures are drawn for the primary metric nDCG@20, for nDCG@20 with linear
+gain (A20, _lin), for P@20 (file names end in _p20) and for the rating-based no-misery share (A18, _nomisery). Every value is first averaged per group over the MF fits (A15);
 error bars and bands are 95% confidence intervals over the 100 per-group
 averages (1.96 * std / sqrt(n)), as in scripts/summarize.py.
 """
@@ -21,10 +21,14 @@ RESULTS = REPO_ROOT / "results"
 FIGURES = REPO_ROOT / "figures"
 METRICS = {
     "ndcg@20": ("nDCG@20", ""),
+    "ndcg_lin@20": ("nDCG@20, linear gain", "_lin"),               # A20
     "p@20": ("P@20", "_p20"),
     "no_misery": ("share of list not disliked", "_nomisery"),   # extension, A18
 }
-PAPER_METRICS = ["ndcg@20", "p@20"]          # metrics the paper reports
+PAPER_METRICS = ["ndcg@20", "ndcg_lin@20", "p@20"]   # metrics with a paper value to compare
+# The paper reports one nDCG@20; its values do not fit the printed gain (see
+# docs/replication_notes.md), so both of our nDCG variants are shown against it.
+PAPER_REF = {"ndcg_lin@20": "ndcg@20"}
 
 # Fixed colour and marker per method, so a method looks the same in every figure.
 # Colours are colour-blind checked; the marker is a second cue for print.
@@ -96,7 +100,7 @@ def fig_e1_vs_paper(metric: str) -> None:
                 mean, ci = mean_ci(df[(df.group_type == gt) & (df.method == method)][col])
                 ax.bar(k - 0.19, mean, 0.36, color=METHODS.get(method, (OTHER.get(method),))[0], yerr=ci,
                        error_kw={"ecolor": INK, "elinewidth": 1, "capsize": 2})
-                paper = PAPER.loc[(gt, method, metric), col]
+                paper = PAPER.loc[(gt, method, PAPER_REF.get(metric, metric)), col]
                 ax.bar(k + 0.19, paper, 0.36, color=PAPER_GREY)
                 ax.text(k - 0.19, mean + ci + 0.01, f"{mean:.2f}", ha="center", va="bottom", fontsize=6.5)
                 ax.text(k + 0.19, paper + 0.01, f"{paper:.2f}", ha="center", va="bottom", fontsize=6.5, color=MUTED)

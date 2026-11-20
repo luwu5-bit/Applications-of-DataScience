@@ -8,21 +8,26 @@ Section 4.1 of the paper (docs/paper.md).
 import numpy as np
 
 
-def ndcg_at_k(sigma: np.ndarray, sigma_u: np.ndarray, k: int) -> float:
+def ndcg_at_k(sigma: np.ndarray, sigma_u: np.ndarray, k: int, gain: str = "exp") -> float:
     """nDCG@k with Borda relevance.
 
     The ground-truth item at position p (1-based) has relevance N - p + 1, any
     other item 0. Gain is 2^rel as printed in the paper, so an item outside
     the ground truth still earns 2^0 = 1 (negligible at N = 20, see
     ASSUMPTIONS.md A11), discount log2(pos + 1), normalized by the ideal DCG@k.
+
+    gain="linear" uses gain = rel instead (A20): an item outside the ground
+    truth earns 0, and a member's number 1 is worth 20 times their number 20
+    instead of 2^19 times.
     """
     N = len(sigma_u)
     top = np.asarray(sigma)[:k]
     hit = top[:, None] == np.asarray(sigma_u)[None, :]          # (k, N)
     rel = (hit * (N - np.arange(N))).sum(axis=1)                # 0 if not in sigma_u
     ideal = np.clip(N - np.arange(k), 0, None)                  # N, N-1, ...
-    dcg = ((2.0 ** rel) / np.log2(np.arange(len(top)) + 2)).sum()
-    idcg = ((2.0 ** ideal) / np.log2(np.arange(k) + 2)).sum()
+    g = (lambda r: 2.0 ** r) if gain == "exp" else (lambda r: r.astype(float))
+    dcg = (g(rel) / np.log2(np.arange(len(top)) + 2)).sum()
+    idcg = (g(ideal) / np.log2(np.arange(k) + 2)).sum()
     return float(dcg / idcg)
 
 

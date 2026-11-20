@@ -99,7 +99,7 @@ def convergence_table(df: pd.DataFrame) -> pd.DataFrame:
     """Setting mean using only the first k fits, for k = 1..K."""
     rows = []
     keys = SETTING + ["method", "metric"]
-    sub = df[df["metric"].isin(["ndcg@20", "p@20", "ap", "no_misery", "rating"])]
+    sub = df[df["metric"].isin(["ndcg@20", "ndcg_lin@20", "p@20", "ap", "no_misery", "rating"])]
     per_fit = sub.groupby(keys + ["mf_fit"])[MEASURES].mean().reset_index()
     for k in range(1, per_fit["mf_fit"].max() + 2):
         part = per_fit[per_fit["mf_fit"] < k].groupby(keys)[MEASURES].mean().reset_index()
@@ -123,8 +123,11 @@ def main() -> None:
 
     if "E1" in frames:
         paper = pd.read_csv(REPO_ROOT / "docs" / "paper_tables.csv")
-        e1 = settings[settings["exp"] == "E1"]
-        merged = e1.merge(paper, on=["group_type", "method", "metric"], how="left", suffixes=("", "_paper"))
+        e1 = settings[settings["exp"] == "E1"].copy()
+        # The paper has one nDCG@20 (gain unclear, A20): compare both of ours with it.
+        e1["paper_metric"] = e1["metric"].replace({"ndcg_lin@20": "ndcg@20"})
+        merged = e1.merge(paper.rename(columns={"metric": "paper_metric"}),
+                          on=["group_type", "method", "paper_metric"], how="left", suffixes=("", "_paper"))
         cols = ["group_type", "method", "metric", "fairness", "fairness_ci", "fairness_paper",
                 "group_utility", "group_utility_ci", "group_utility_paper"]
         merged[cols].to_csv(OUT / "e1_vs_paper.csv", index=False)

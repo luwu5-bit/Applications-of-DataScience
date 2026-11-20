@@ -32,6 +32,7 @@ awm:
 
 metrics:
   ndcg_ks: [1, 5, 10, 20]     # the primary metric is nDCG@20
+  ndcg_linear_ks: [20]        # nDCG with linear gain rel instead of 2^rel (A20), reported next to it
   precision_ks: [1, 5, 10, 20]
   misery_threshold: 3.0       # rating-based metrics (extension, A18): a rating below this = disliked
 

@@ -87,3 +87,13 @@ def test_rating_metrics_see_what_top_n_metrics_miss():
     assert no_misery_share(liked, ratings, 3.0) == 1.0
     assert no_misery_share(hated, ratings, 3.0) == 0.0
     assert mean_rating(liked, ratings) > mean_rating(hated, ratings)
+
+
+def test_ndcg_linear_gain():
+    # Ground truth [0, 1] (rel 2, 1). List [1, 9]: item 1 at position 1 has rel 1.
+    # Linear: DCG = 1 / log2(2) = 1; IDCG = 2 + 1 / log2(3).
+    idcg = 2 + 1 / np.log2(3)
+    assert ndcg_at_k(np.array([1, 9]), np.array([0, 1]), 2, gain="linear") == pytest.approx(1 / idcg)
+    assert ndcg_at_k(SIGMA, SIGMA, 20, gain="linear") == pytest.approx(1.0)
+    # An item outside the ground truth earns nothing under linear gain.
+    assert ndcg_at_k(np.array([7, 9]), np.array([0, 1]), 2, gain="linear") == 0.0

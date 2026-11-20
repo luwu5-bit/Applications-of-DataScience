@@ -52,6 +52,7 @@ Member utility = similarity of group list sigma to member's ground truth sigma_u
 | AP | sum over k of P@k * [sigma[k] in sigma_u], divided by N |
 | P@k | \|sigma[1:k] ∩ sigma_u\| / k, for k in {1, 5, 10, 20} |
 | Kendall's tau | items missing from a list are tied at the last rank; (concordant - discordant) / number of pairs |
+| ndcg_lin@20 (A20) | as nDCG@20 but gain = rel (linear); reported next to the printed gain |
 | no_misery, rating (extension, A18) | share of the list the member rates >= 3; member's mean rating of the list. Not in the paper |
 
 ## Documented assumptions (paper leaves these open)

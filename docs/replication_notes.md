@@ -157,9 +157,14 @@ XPO - AVG, fairness, paired (95% CI, [fits significant for XPO / for AVG]):
 
 ### Findings over group size
 
-- **The XPO lead at 8 random members halves with 20 fits** (nDCG@20: +0.013 ±
-  0.009, single fit 0: +0.026) and is significant in only 9 of 20 fits on its
-  own. The presentation's "XPO's only clear lead" was the largest of the fits.
+- **The XPO lead at 8 random members under nDCG@20 is not a finding** (revised
+  2026-11-20 after the presentation feedback). It halves with 20 fits
+  (+0.013 ± 0.009, single fit 0: +0.026) and is significant in only 9 of 20
+  fits on its own. It is one cell out of 16 (8 sizes x 2 group types), and
+  with 16 tests at the 5% level about one "significant" cell is expected by
+  chance. Its size is about what a single MF fit moves a setting mean (up to
+  0.016, see above). The presentation's "XPO's only clear lead" was the
+  largest of the fits. In the report: no lead at m = 8, not "a small lead".
 - **Under precision and AP, XPO is fairer than AVG for small groups** (2 to 8
   members in RND, 2 to 3 (P@20) or 2 to 5 (AP) in SIM), and the lead shrinks
   steadily with m. From 15 members on AVG is level or ahead under every top-N
@@ -218,6 +223,86 @@ the largest change at S = 10,000 is 0.23. When two items get almost the same
 count, S decides which comes first, and under the top-heavy nDCG@20 that can
 swing one member's score. (Correction to the presentation's Q&A notes, which
 said a group's fairness changes "by at most 0.002": that is the mean change.)
+
+## How SIM groups are built and how similar they are (2026-11-20)
+
+Requested in the presentation feedback: explain in the report what makes a
+SIM group similar. Numbers from `scripts/diagnostics/group_similarity.py`
+(`results/diagnostics/group_similarity.csv`): the same 100 groups per setting
+as in the experiments, fit 0 for the ground truth.
+
+**Construction** (A5, A12, `src/gfair/groups.py`):
+
+1. Every user is a vector over all 3,706 movies: their observed rating minus
+   their own mean rating, 0 for unrated movies. Centering removes the
+   difference between generous and strict raters, so two users are similar
+   when they like and dislike the *same* movies relative to their own scale.
+   Only observed ratings are used, never MF predictions.
+2. Similarity of two users = cosine of these vectors (mean-centered cosine,
+   the paper's measure; it is the "adjusted"/centered cosine of user-based
+   neighbourhood CF, Aggarwal 2016, Ch. 2). We take the cosine over the full
+   vectors, not only over co-rated movies (A12), because with few co-rated
+   movies the co-rated version gives +1 or -1 by chance.
+3. A random seed user starts the group. Then the user with the highest mean
+   similarity to all current members is added, until the group has m members
+   (greedy, A5).
+
+**How similar the result is** (mean over groups):
+
+| | m = 2 | 5 | 8 | 15 | 30 |
+|---|---|---|---|---|---|
+| Mean pairwise similarity, SIM | 0.239 | 0.218 | 0.210 | 0.195 | 0.176 |
+| Mean pairwise similarity, RND | 0.025 | 0.021 | 0.020 | 0.020 | 0.020 |
+| Lowest pair in the group, SIM | 0.239 | 0.117 | 0.075 | 0.045 | -0.009 |
+| Co-rated movies per pair (median), SIM | 55 | 76 | 109 | 134 | 135 |
+| Co-rated movies per pair (median), RND | 21 | 13 | 12 | 12 | 10 |
+| Ground-truth top 20 shared by a pair, SIM | 47% | 46% | 44% | 46% | 45% |
+| Ground-truth top 20 shared by a pair, RND | 38% | 36% | 36% | 36% | 36% |
+| Ratings per member, SIM | 152 | 189 | 249 | 316 | 344 |
+| Ratings per member, RND | 155 | 164 | 162 | 162 | 159 |
+| Level-1 Pareto share of the 200 candidates, SIM | 1.4% | 4.7% | 8.4% | 15.5% | 24.4% |
+| Level-1 Pareto share of the 200 candidates, RND | 1.5% | 8.0% | 12.7% | 24.9% | 39.3% |
+
+Reference: over 2,000 random users, the mean similarity of a pair is 0.021
+and the 99th percentile 0.145. So an average SIM pair is more similar than
+99% of random pairs, and the similarity drops slowly as the group grows
+(at m = 30 the least similar pair is no longer similar at all).
+
+What this means for the results:
+
+- Similar members agree more on their top 20 (46% vs 36% shared), so one list
+  can serve all of them better: fairness and group utility are higher for SIM
+  at every size, as in the paper.
+- Fewer items are Pareto optimal in SIM groups (4.7% vs 8.0% at m = 5): the
+  members' rankings conflict less. Pools are smaller and XPO's level x is
+  higher (see E3).
+- Even random pairs share 36% of their top 20: the 200 candidates are random,
+  and well-liked movies are in most members' top 20. This is why RND fairness
+  is not near 0 for small groups.
+- **Side effect:** the full-vector cosine favours users with many ratings
+  (more non-zero entries to overlap), so SIM members rate on average 189
+  movies at m = 5 and 344 at m = 30, against about 160 for RND (MovieLens
+  median: 96). Their MF predictions rest on more data. The paper does not
+  report this; we note it as a limitation, not as a reason to change A12.
+
+Draft paragraph for the report (shorten as needed):
+
+> *Similar groups.* Following the paper, we measure user similarity with the
+> mean-centered cosine: each user's observed ratings minus their mean rating,
+> with unrated movies set to 0, compared by cosine (Aggarwal, 2016, Ch. 2).
+> Centering makes two users similar when they like the same movies relative to
+> their own rating scale, not when both rate generously. A SIM group starts
+> from a random user and grows greedily: at each step the user with the
+> highest mean similarity to all current members joins. The resulting groups
+> are clearly more homogeneous than random ones: at m = 5 the mean pairwise
+> similarity is 0.22 against 0.02 for random groups (an average SIM pair is
+> more similar than 99% of random pairs), and two members share 46% instead of
+> 36% of their ground-truth top 20. The similarity declines slowly with group
+> size (0.18 at m = 30). Two choices are ours: the cosine runs over all movies
+> rather than co-rated ones only, which avoids spurious similarities of ±1
+> from one or two shared movies but favours users with many ratings; and the
+> similarity to a group is the mean over its members, which the paper leaves
+> open.
 
 # Earlier single-fit analysis (fit 0)
 
@@ -415,7 +500,9 @@ Runtime per group: NPO 2 ms (m = 2) to 13 ms (m = 30), XPO 0.7 to 8.5 ms, AVG an
 ### Findings
 - Fairness falls quickly with group size for every method (as in the paper's Fig. 2/3), and SIM stays above RND.
 - **XPO is never clearly fairer than AVG, except at m = 8 in RND groups**
-  (+0.026 ± 0.015; +0.013 to +0.026 across six MF fits). At m = 2 AVG is
+  (+0.026 ± 0.015; +0.013 to +0.026 across six MF fits). *Superseded: over 20
+  fits this lead is +0.013 and not reliable, see "Findings over group size"
+  above.* At m = 2 AVG is
   significantly fairer (RND and SIM). From m = 15 on AVG is slightly but
   significantly fairer in RND groups, and at m = 15 and 30 in SIM groups.
 - **XPO is fairer than NPO at every size**, clearly so up to m = 10. From m = 15 on the gap is below 0.01 in RND groups and 0.01 to 0.03 in SIM groups.
