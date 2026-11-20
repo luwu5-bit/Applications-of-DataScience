@@ -35,6 +35,83 @@ favour of the first / second method.
   about 0.003, well below the CI over groups (0.003 to 0.03).
 - Fit 0 reproduces the earlier single-fit results exactly (checked row by row).
 
+## nDCG with linear gain (A20, added 2026-11-20)
+
+Presentation feedback: we argue the paper did not use its printed gain 2^rel,
+so the results should not rest on that gain alone. `ndcg_lin@20` is nDCG@20
+with gain = rel (Borda relevance N - p + 1, 0 outside the ground truth), same
+discount and normalization. Rerun over all 20 fits; every other number is
+bit-identical to before (same seeds, checked row by row). 15 to 20 fits move
+no setting mean by more than 0.0015.
+
+E1 fairness (m = 5), ours vs paper (paper's nDCG@20, gain unknown):
+
+| | RND 2^rel | RND linear | RND paper | SIM 2^rel | SIM linear | SIM paper |
+|---|---|---|---|---|---|---|
+| AVG | 0.196 | 0.414 | 0.298 | 0.331 | 0.569 | 0.437 |
+| LM | 0.092 | 0.316 | 0.197 | 0.211 | 0.452 | 0.403 |
+| MUL | 0.183 | 0.411 | 0.290 | 0.320 | 0.565 | 0.438 |
+| MAX | 0.260 | 0.317 | 0.208 | 0.362 | 0.420 | 0.329 |
+| BORDA | 0.135 | 0.401 | 0.210 | 0.271 | 0.552 | 0.203 |
+| MED | 0.149 | 0.398 | 0.211 | 0.293 | 0.539 | 0.154 |
+| NPO | 0.134 | 0.397 | 0.311 | 0.266 | 0.550 | 0.472 |
+| XPO | 0.203 | **0.460** | **0.406** | 0.332 | **0.606** | **0.579** |
+
+Group utility, linear: AVG 0.610 / 0.711, XPO 0.597 / 0.709, NPO 0.568 /
+0.683 (RND / SIM). Unlike the paper, XPO does not raise group utility; it
+trades a little of it for fairness (RND -0.013, SIM level).
+
+Paired differences, fairness, linear gain ([fits significant for a / for b]):
+
+| | 2 | 3 | 5 | 8 | 10 | 15 | 20 | 30 |
+|---|---|---|---|---|---|---|---|---|
+| XPO - AVG RND | **+0.063** [20/0] | **+0.058** [20/0] | **+0.046** [20/0] | **+0.024** [20/0] | **+0.014** [12/0] | -0.008 | -0.004 | **-0.017** [0/20] |
+| XPO - AVG SIM | **+0.055** [20/0] | **+0.045** [20/0] | **+0.037** [20/0] | **+0.017** [18/0] | +0.011 [6/0] | +0.003 | -0.008 | **-0.020** [0/20] |
+| XPO - NPO RND | **+0.080** | **+0.079** | **+0.063** | **+0.048** | **+0.032** | **+0.012** | **+0.010** | +0.001 |
+| XPO - NPO SIM | **+0.061** | **+0.059** | **+0.056** | **+0.048** | **+0.041** | **+0.028** | **+0.017** | **+0.008** |
+| NPO - AVG RND | **-0.017** | **-0.020** | **-0.017** | **-0.024** | **-0.018** | **-0.021** | **-0.014** | **-0.018** |
+| MAX - AVG RND | **-0.139** | **-0.128** | **-0.097** | **-0.118** | **-0.101** | **-0.104** | **-0.101** | **-0.096** |
+
+(CIs 0.001 to 0.011; bold = 95% CI excludes 0. XPO - NPO and the NPO / MAX
+rows are significant in nearly all fits.)
+
+Findings:
+
+- **Under linear gain XPO is the fairest of all nine methods at m = 5, in RND
+  and SIM**, with leads over AVG of +0.046 and +0.037 that hold in every one
+  of the 20 fits. That is the paper's main claim. The lead is about 40% (RND)
+  and 25% (SIM) of the paper's (+0.108, +0.142).
+- **XPO > NPO everywhere**, as in the paper. NPO is slightly below AVG
+  (-0.02), where the paper has it slightly above (+0.01 / +0.04). Our
+  ordering is XPO > AVG ≈ MUL > BORDA ≈ MED ≈ NPO > MAX ≈ LM (RND); the paper's XPO > NPO > AVG ≈ MUL > MED ≈ BORDA ≈ MAX ≈ LM.
+- **The lead shrinks steadily with group size** and turns into a significant
+  AVG lead at m = 30 (RND and SIM). Under linear gain the lead at m = 8 is
+  robust (+0.024, 20/20 fits): the m = 8 caveat above is about the printed
+  gain only.
+- **Linear gain fits the paper's method ordering much better.** Spearman
+  correlation between our 8 method means and the paper's (fairness): 0.74 /
+  0.60 (RND / SIM) for linear gain, 0.26 / 0.14 for 2^rel. P@20 and AP: 0.76
+  / 0.45 and 0.69 / 0.64. In particular MAX drops from first (2^rel) to
+  among the last, as in the paper. This is more evidence that the paper did
+  not compute nDCG with 2^rel.
+- Levels: linear gain puts AVG and LM about 0.1 above the paper (RND), XPO
+  0.05 above. So our XPO is close to the paper's, our baselines are stronger.
+  Remaining level differences come from MF and the rating matrix (A9), see
+  the single-fit sensitivity checks.
+- BORDA and MED stay far above the paper's values (0.40 vs 0.21 RND; 0.55 /
+  0.54 vs 0.20 / 0.15 SIM). The paper's SIM values for them are below its RND
+  values, which no other method shows; we cannot explain them.
+
+**Suggested narrative for the report.** Every metric that counts how much of
+each member's top 20 reaches the group list (P@20, AP, nDCG with linear
+gain) gives the same picture: XPO is the fairest method for small groups,
+the lead is smaller than in the paper, and it disappears from about 15
+members on. Only nDCG with the printed gain 2^rel, which mostly rewards
+putting each member's single favourite near the top, shows no lead; that is
+a property of the gain, not of XPO (see MAX). Report linear-gain nDCG and
+P@20 as the main tables and the printed gain as a robustness/discussion
+point, stating openly that the paper prints 2^rel.
+
 ## E1 (m = 5, N = 20), all methods
 
 Fairness (95% CI) and group utility. Paper values in `results/summary/e1_vs_paper.csv`
@@ -164,7 +241,9 @@ XPO - AVG, fairness, paired (95% CI, [fits significant for XPO / for AVG]):
   with 16 tests at the 5% level about one "significant" cell is expected by
   chance. Its size is about what a single MF fit moves a setting mean (up to
   0.016, see above). The presentation's "XPO's only clear lead" was the
-  largest of the fits. In the report: no lead at m = 8, not "a small lead".
+  largest of the fits. In the report: no lead at m = 8 under the printed gain, not "a small lead".
+  (Under linear gain the lead at m = 8 is +0.024 in 20/20 fits, part of a
+  steady decline with m; see "nDCG with linear gain".)
 - **Under precision and AP, XPO is fairer than AVG for small groups** (2 to 8
   members in RND, 2 to 3 (P@20) or 2 to 5 (AP) in SIM), and the lead shrinks
   steadily with m. From 15 members on AVG is level or ahead under every top-N
