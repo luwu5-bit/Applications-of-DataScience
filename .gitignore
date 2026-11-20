@@ -21,3 +21,7 @@ results/*_smoke.csv
 
 # Office lock files
 ~$*
+
+# Raw per-experiment results are large (35-290 MB) and reproducible from the seed;
+# only the averaged tables in results/summary/ and results/diagnostics/ are committed.
+results/E*.csv

@@ -115,3 +115,14 @@ def rmse(predictions: np.ndarray, ratings: pd.DataFrame) -> float:
     """RMSE of the prediction matrix on the given (u, i, rating) rows."""
     pred = predictions[ratings["u"].to_numpy(), ratings["i"].to_numpy()]
     return float(np.sqrt(np.mean((pred - ratings["rating"].to_numpy()) ** 2)))
+
+
+def fit_rng(seed: int, fit: int) -> np.random.Generator:
+    """Generator for the random start of MF fit number `fit` (A15).
+
+    Fit 0 is the fit behind data/processed/predictions.npy: train_mf.py spawns
+    three streams from the global seed (split, sanity check, final fit), and
+    the final fit uses the third one, spawn key (2,). Fit k uses spawn key
+    (2 + k,), so every fit derives from the global seed and fit 0 is unchanged.
+    """
+    return np.random.default_rng(np.random.SeedSequence(seed, spawn_key=(2 + fit,)))

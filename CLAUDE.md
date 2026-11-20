@@ -35,8 +35,9 @@ For one group of m users and a candidate set of 200 random movies:
    gets +1. Rank the pool by count (descending) and return the top N.
 7. **Evaluate** the group list against each member's ground truth.
 
-Baselines: AVG (mean predicted rating), LM (min predicted rating). Optional if
-time allows: MUL, MAX, BORDA (mean rank). The paper's fairness-aware baselines
+Baselines: AVG (mean predicted rating), LM (min predicted rating), and the
+paper's other score/rank baselines MUL, MAX, BORDA (mean rank), MED (median
+rank) (A19). Extension: AWM (average without misery, threshold 3, A16/A17). The paper's fairness-aware baselines
 (GRF, SPG, EFG, GVAR, PEN) are out of scope.
 
 ## Metrics
@@ -51,6 +52,7 @@ Member utility = similarity of group list sigma to member's ground truth sigma_u
 | AP | sum over k of P@k * [sigma[k] in sigma_u], divided by N |
 | P@k | \|sigma[1:k] ∩ sigma_u\| / k, for k in {1, 5, 10, 20} |
 | Kendall's tau | items missing from a list are tied at the last rank; (concordant - discordant) / number of pairs |
+| no_misery, rating (extension, A18) | share of the list the member rates >= 3; member's mean rating of the list. Not in the paper |
 
 ## Documented assumptions (paper leaves these open)
 
@@ -61,7 +63,9 @@ silently; if you change one, update that file and the config.
 - **Monte Carlo samples:** S = 10,000 default; run a sensitivity check with
   S in {1k, 5k, 10k, 50k} and report convergence.
 - **MF:** explicit-rating MF (e.g. biased SVD), fixed hyperparameters in the config,
-  report train/test RMSE once as a sanity check.
+  report train/test RMSE once as a sanity check. Every experiment runs on 20 MF
+  fits with different random starts; results are averaged per group over the
+  fits (A15).
 - **Ranks:** computed exactly over all 200 candidates (no top-N' approximation
   needed in the experiments). Equally rated movies share the average rank (the
   paper allows ties in ranks); only the ground-truth list breaks ties by item id.

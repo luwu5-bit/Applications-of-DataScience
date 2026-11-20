@@ -2,8 +2,10 @@
 
 Usage: python scripts/make_figures.py
 
-All figures use the primary metric nDCG@20. Error bars and bands are 95%
-confidence intervals over the 100 groups (1.96 * std / sqrt(n)).
+Figures are drawn for the primary metric nDCG@20, for P@20 (file names end
+in _p20) and for the rating-based no-misery share (A18, _nomisery). Every value is first averaged per group over the MF fits (A15);
+error bars and bands are 95% confidence intervals over the 100 per-group
+averages (1.96 * std / sqrt(n)), as in scripts/summarize.py.
 """
 
 import matplotlib
@@ -17,7 +19,12 @@ from gfair.config import REPO_ROOT
 
 RESULTS = REPO_ROOT / "results"
 FIGURES = REPO_ROOT / "figures"
-METRIC = "ndcg@20"
+METRICS = {
+    "ndcg@20": ("nDCG@20", ""),
+    "p@20": ("P@20", "_p20"),
+    "no_misery": ("share of list not disliked", "_nomisery"),   # extension, A18
+}
+PAPER_METRICS = ["ndcg@20", "p@20"]          # metrics the paper reports
 
 # Fixed colour and marker per method, so a method looks the same in every figure.
 # Colours are colour-blind checked; the marker is a second cue for print.
@@ -26,15 +33,17 @@ METHODS = {
     "LM": ("#eb6834", "s"),
     "NPO": ("#1baf7a", "^"),
     "XPO": ("#eda100", "D"),
+    "AWM": ("#8a5cd1", "v"),
 }
+# Shown in the E1 comparison only (in the line plots they would crowd out the
+# main story); all of them are in results/summary/.
+OTHER = {"MUL": "#7f8c8d", "MAX": "#a0522d", "BORDA": "#c2185b", "MED": "#00838f"}
+REPLICATED = ["AVG", "LM", "MUL", "MAX", "BORDA", "MED", "NPO", "XPO"]    # methods in the paper's tables
 GROUP_LABEL = {"RND": "Random groups (RND)", "SIM": "Similar groups (SIM)"}
 INK, MUTED, GRID, SURFACE, PAPER_GREY = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb", "#b9b8b2"
 
-# Paper Tables 1/2, nDCG@20, m = 5, N = 20: (fairness, group utility).
-PAPER = {
-    "RND": {"AVG": (0.298, 0.455), "LM": (0.197, 0.341), "NPO": (0.311, 0.466), "XPO": (0.406, 0.532)},
-    "SIM": {"AVG": (0.437, 0.577), "LM": (0.403, 0.542), "NPO": (0.472, 0.601), "XPO": (0.579, 0.674)},
-}
+# Paper Tables 1/2 (m = 5, N = 20), extracted from docs/paper.md.
+PAPER = pd.read_csv(REPO_ROOT / "docs" / "paper_tables.csv").set_index(["group_type", "method", "metric"])
 
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
@@ -47,9 +56,13 @@ plt.rcParams.update({
 })
 
 
-def load(exp: str) -> pd.DataFrame:
+def load(exp: str, metric: str) -> pd.DataFrame:
+    """One row per (setting, group, method): values averaged over the MF fits."""
     df = pd.read_csv(RESULTS / f"{exp}.csv")
-    return df[df["metric"] == METRIC]
+    df = df[df["metric"] == metric]
+    keys = ["group_type", "m", "N", "n_samples", "group_id", "method"]
+    cols = ["fairness", "group_utility", "pool_size", "xpo_level"]
+    return df.groupby(keys, dropna=False)[cols].mean().reset_index()
 
 
 def mean_ci(values: pd.Series) -> tuple[float, float]:
@@ -70,37 +83,41 @@ def m_axis(ax: plt.Axes, ms: list[int]) -> None:
     ax.set_xlabel("Group size m")
 
 
-def fig_e1_vs_paper() -> None:
+def fig_e1_vs_paper(metric: str) -> None:
     """E1: our fairness and group utility next to the paper's values."""
-    df = load("E1")
-    fig, axes = plt.subplots(2, 2, figsize=(8.5, 6), sharey="row")
+    label, suffix = METRICS[metric]
+    df = load("E1", metric)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 6.5), sharey="row")
     for row, (col, title) in enumerate([("fairness", "Fairness"), ("group_utility", "Group utility")]):
         for c, gt in enumerate(["RND", "SIM"]):
             ax = axes[row, c]
-            x = np.arange(len(METHODS))
-            for k, method in enumerate(METHODS):
+            x = np.arange(len(REPLICATED))
+            for k, method in enumerate(REPLICATED):
                 mean, ci = mean_ci(df[(df.group_type == gt) & (df.method == method)][col])
-                ax.bar(k - 0.19, mean, 0.36, color=METHODS[method][0], yerr=ci,
+                ax.bar(k - 0.19, mean, 0.36, color=METHODS.get(method, (OTHER.get(method),))[0], yerr=ci,
                        error_kw={"ecolor": INK, "elinewidth": 1, "capsize": 2})
-                paper = PAPER[gt][method][row]
+                paper = PAPER.loc[(gt, method, metric), col]
                 ax.bar(k + 0.19, paper, 0.36, color=PAPER_GREY)
-                ax.text(k - 0.19, mean + ci + 0.01, f"{mean:.2f}", ha="center", va="bottom", fontsize=8)
-                ax.text(k + 0.19, paper + 0.01, f"{paper:.2f}", ha="center", va="bottom", fontsize=8, color=MUTED)
-            ax.set_xticks(x, list(METHODS))
+                ax.text(k - 0.19, mean + ci + 0.01, f"{mean:.2f}", ha="center", va="bottom", fontsize=6.5)
+                ax.text(k + 0.19, paper + 0.01, f"{paper:.2f}", ha="center", va="bottom", fontsize=6.5, color=MUTED)
+            ax.set_xticks(x, REPLICATED, fontsize=8)
             ax.set_title(f"{title}, {GROUP_LABEL[gt]}")
             ax.set_ylim(0, 0.8)
-        axes[row, 0].set_ylabel("nDCG@20")
+        axes[row, 0].set_ylabel(label)
     # A caption instead of a legend: "ours" has four colours, so one swatch would mislead.
-    fig.text(0.5, -0.02, "Coloured bars: ours, mean of 100 groups with 95% CI.   "
+    fig.text(0.5, -0.02, "Coloured bars: ours, mean of 100 groups averaged over the MF fits, with 95% CI.   "
              "Grey bars: paper (Sacharidis 2019, Tables 1 and 2).", ha="center", color=MUTED, fontsize=9)
-    fig.suptitle("E1: replication vs paper (m = 5, N = 20)", x=0.02, ha="left", fontweight="bold")
+    fig.suptitle(f"E1: replication vs paper (m = 5, N = 20, {label})", x=0.02, ha="left", fontweight="bold")
     fig.tight_layout()
-    save(fig, "e1_vs_paper.png")
+    save(fig, f"e1_vs_paper{suffix}.png")
 
 
-def fig_vs_group_size(col: str, ylabel: str, name: str) -> None:
+def fig_vs_group_size(col: str, metric: str) -> None:
     """E3: one line per method against group size, RND and SIM side by side."""
-    df = load("E3")
+    label, suffix = METRICS[metric]
+    ylabel = f"{'Fairness' if col == 'fairness' else 'Group utility'} ({label})"
+    name = f"{col}_vs_group_size{suffix}.png"
+    df = load("E3", metric)
     ms = sorted(df.m.unique())
     fig, axes = plt.subplots(1, 2, figsize=(9, 3.8), sharey=True)
     for ax, gt in zip(axes, ["RND", "SIM"]):
@@ -128,39 +145,42 @@ def fig_vs_group_size(col: str, ylabel: str, name: str) -> None:
     save(fig, name)
 
 
-def fig_xpo_minus_avg() -> None:
-    """E3: paired fairness difference XPO - AVG per group, with 95% CI."""
-    df = load("E3")
+def fig_difference(a: str, b: str, metric: str) -> None:
+    """E3: paired fairness difference a - b per group, with 95% CI."""
+    label, suffix = METRICS[metric]
+    df = load("E3", metric)
     ms = sorted(df.m.unique())
     fig, ax = plt.subplots(figsize=(6.5, 3.8))
     for gt, color, marker, shift in [("RND", "#2a78d6", "o", 0.97), ("SIM", "#eb6834", "s", 1.03)]:
         stats = []
         for m in ms:
             wide = df[(df.group_type == gt) & (df.m == m)].pivot(index="group_id", columns="method", values="fairness")
-            stats.append(mean_ci(wide["XPO"] - wide["AVG"]))
+            stats.append(mean_ci(wide[a] - wide[b]))
         mean, ci = np.array(stats).T
         # Small horizontal shift so the two error bars do not overlap.
         ax.errorbar(np.array(ms) * shift, mean, yerr=ci, color=color, marker=marker, capsize=3,
                     linewidth=1.5, label=GROUP_LABEL[gt], markeredgecolor=SURFACE, markeredgewidth=1)
     ax.axhline(0, color=INK, linewidth=1)
-    ax.text(2, 0.047, "XPO fairer", color=MUTED, fontsize=8)
-    ax.text(12, -0.058, "AVG fairer", color=MUTED, fontsize=8)
+    lo, hi = ax.get_ylim()
+    lim = max(abs(lo), abs(hi), 0.03) * 1.15
+    ax.set_ylim(-lim, lim)
+    ax.text(0.02, 0.95, f"{a} fairer", color=MUTED, fontsize=8, va="top", transform=ax.transAxes)
+    ax.text(0.02, 0.05, f"{b} fairer", color=MUTED, fontsize=8, va="bottom", transform=ax.transAxes)
     m_axis(ax, ms)
-    ax.set_ylim(-0.075, 0.06)
-    ax.set_ylabel("Fairness difference (nDCG@20)")
-    ax.set_title("XPO minus AVG, paired per group (95% CI)")
+    ax.set_ylabel(f"Fairness difference ({label})")
+    ax.set_title(f"{a} minus {b}, paired per group (95% CI)")
     ax.legend(loc="upper right")
     fig.tight_layout()
-    save(fig, "xpo_minus_avg_vs_group_size.png")
+    save(fig, f"{a.lower()}_minus_{b.lower()}_vs_group_size{suffix}.png")
 
 
 def fig_pool_size() -> None:
-    """E3: candidate pool size of NPO and XPO, and the XPO level x."""
-    df = load("E3")
+    """E3: candidate pool size of NPO and XPO, misery-free items of AWM, and the XPO level x."""
+    df = load("E3", "ndcg@20")
     ms = sorted(df.m.unique())
     fig, (ax_pool, ax_x) = plt.subplots(1, 2, figsize=(9, 3.8))
     for gt, style, fill in [("RND", "-", True), ("SIM", "--", False)]:
-        for method in ["NPO", "XPO"]:
+        for method in ["NPO", "XPO", "AWM"]:
             color, marker = METHODS[method]
             d = df[(df.group_type == gt) & (df.method == method)]
             ax_pool.plot(ms, d.groupby("m").pool_size.mean(), style, color=color, marker=marker,
@@ -174,8 +194,8 @@ def fig_pool_size() -> None:
     ax_pool.text(30, 13, "N = 20", color=MUTED, fontsize=8, va="top", ha="right")
     ax_pool.set_ylim(0, 210)
     ax_pool.set_ylabel("Mean pool size (items)")
-    ax_pool.set_title("Candidate pool size")
-    ax_pool.legend(loc="center left", fontsize=8, bbox_to_anchor=(0.0, 0.62))
+    ax_pool.set_title("Candidate pool size (AWM: misery-free items)")
+    ax_pool.legend(loc="upper left", fontsize=7.5, bbox_to_anchor=(0.0, 0.9), ncol=2)
     ax_x.axhline(1, color=MUTED, linewidth=0.8, linestyle=":")
     ax_x.text(2, 0.85, "x = 1: plain Pareto-optimal set, cannot go lower", color=MUTED, fontsize=8, va="top")
     ax_x.set_ylim(0, 10)
@@ -190,14 +210,16 @@ def fig_pool_size() -> None:
 
 def fig_mc_sensitivity() -> None:
     """E5: how much a group's fairness moves when S changes (reference: largest S)."""
-    df = load("E5")
-    df = df[df.method.isin(["NPO", "XPO"])]
+    # Not averaged over fits first: the change caused by S is measured per fit
+    # and group, then averaged.
+    df = pd.read_csv(RESULTS / "E5.csv")
+    df = df[(df.metric == "ndcg@20") & df.method.isin(["NPO", "XPO"])]
     s_values = sorted(df.n_samples.unique())
     fig, ax = plt.subplots(figsize=(6.5, 3.8))
     for m, style, fill in [(5, "-", True), (20, "--", False)]:
         for method in ["NPO", "XPO"]:
             color, marker = METHODS[method]
-            wide = df[(df.m == m) & (df.method == method)].pivot(index="group_id", columns="n_samples", values="fairness")
+            wide = df[(df.m == m) & (df.method == method)].pivot(index=["mf_fit", "group_id"], columns="n_samples", values="fairness")
             dev = wide.sub(wide[s_values[-1]], axis=0).abs().mean()
             ax.plot(s_values[:-1], dev[s_values[:-1]], style, color=color, marker=marker,
                     markerfacecolor=color if fill else SURFACE, label=f"{method}, m = {m}")
@@ -215,10 +237,13 @@ def fig_mc_sensitivity() -> None:
 
 def main() -> None:
     FIGURES.mkdir(exist_ok=True)
-    fig_e1_vs_paper()
-    fig_vs_group_size("fairness", "Fairness (nDCG@20)", "fairness_vs_group_size.png")
-    fig_vs_group_size("group_utility", "Group utility (nDCG@20)", "group_utility_vs_group_size.png")
-    fig_xpo_minus_avg()
+    for metric in METRICS:
+        if metric in PAPER_METRICS:
+            fig_e1_vs_paper(metric)
+        fig_vs_group_size("fairness", metric)
+        fig_vs_group_size("group_utility", metric)
+        fig_difference("XPO", "AVG", metric)
+        fig_difference("AWM", "AVG", metric)
     fig_pool_size()
     fig_mc_sensitivity()
 

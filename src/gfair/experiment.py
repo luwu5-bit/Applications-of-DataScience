@@ -14,8 +14,9 @@ RESULT_COLUMNS = [
     "exp", "group_type", "m", "N", "group_id", "method", "metric",
     "fairness", "group_utility", "pool_size", "runtime_s", "seed",
 ]
-# Not in the base schema but needed for E3 (XPO level) and E5 (S).
-EXTRA_COLUMNS = ["xpo_level", "n_samples"]
+# Not in the base schema but needed for E3 (XPO level), E5 (S) and the
+# averaging over MF fits (A15). pool_size of AWM = number of misery-free items.
+EXTRA_COLUMNS = ["xpo_level", "n_samples", "mf_fit"]
 
 GROUP_TYPES = ["RND", "SIM"]
 
@@ -32,16 +33,22 @@ def group_rng(seed: int, group_type: str, m: int, N: int, group_id: int) -> np.r
 
 
 def member_utilities(
-    sigma: np.ndarray, truth: np.ndarray, N: int, ndcg_ks: list[int], precision_ks: list[int]
+    sigma: np.ndarray, truth: np.ndarray, N: int, ndcg_ks: list[int], precision_ks: list[int],
+    preds: np.ndarray | None = None, misery_threshold: float | None = None,
 ) -> dict[str, np.ndarray]:
     """All metrics of the group list against every member's ground truth.
 
     `truth` has shape (m, N). Returns metric name -> array of m utilities.
-    Cut-offs k > N are skipped.
+    Cut-offs k > N are skipped. With `preds` (m, candidates) also the
+    rating-based metrics of A18: "no_misery" (share of the list the member
+    rates >= misery_threshold) and "rating" (the member's mean rating of it).
     """
     out: dict[str, list[float]] = {"tau": [], "ap": []}
     out |= {f"p@{k}": [] for k in precision_ks if k <= N}
     out |= {f"ndcg@{k}": [] for k in ndcg_ks if k <= N}
+    if preds is not None:
+        out["no_misery"] = [metrics.no_misery_share(sigma, r, misery_threshold) for r in preds]
+        out["rating"] = [metrics.mean_rating(sigma, r) for r in preds]
     for sigma_u in truth:
         out["tau"].append(metrics.kendall_tau(sigma, sigma_u))
         out["ap"].append(metrics.average_precision(sigma, sigma_u))
@@ -64,12 +71,15 @@ def run_setting(
     cfg: dict,
     n_groups: int | None = None,
     n_samples: int | None = None,
+    mf_fit: int = 0,
 ) -> pd.DataFrame:
     """Evaluate all configured methods on n_groups groups of size m.
 
     `predictions` is the filled rating matrix (users x items); `centered` the
     matrix from groups.centered_ratings (only needed for SIM groups).
     `n_groups` and `n_samples` override the config (smoke runs, E5).
+    `mf_fit` only labels the rows: which MF fit produced `predictions` (A15).
+    Groups, candidates and weight samples do not depend on it.
     """
     seed = cfg["seed"]
     n_groups = n_groups or cfg["n_groups"]
@@ -97,6 +107,16 @@ def run_setting(
                 sigma = aggregators.avg(preds, N)
             elif method == "LM":
                 sigma = aggregators.lm(preds, N)
+            elif method == "MUL":
+                sigma = aggregators.mul(preds, N)
+            elif method == "MAX":
+                sigma = aggregators.max_pleasure(preds, N)
+            elif method == "BORDA":
+                sigma = aggregators.borda(ranks, N)
+            elif method == "MED":
+                sigma = aggregators.med(ranks, N)
+            elif method == "AWM":
+                sigma, info = aggregators.awm(preds, N, cfg["awm"]["threshold"])
             elif method == "NPO":
                 sigma, info = aggregators.npo(ranks, N, S, rng, batch)
             elif method == "XPO":
@@ -106,7 +126,8 @@ def run_setting(
             runtime = time.perf_counter() - t0
 
             utils = member_utilities(
-                sigma, truth, N, cfg["metrics"]["ndcg_ks"], cfg["metrics"]["precision_ks"]
+                sigma, truth, N, cfg["metrics"]["ndcg_ks"], cfg["metrics"]["precision_ks"],
+                preds=preds, misery_threshold=cfg["metrics"]["misery_threshold"],
             )
             for metric, values in utils.items():
                 rows.append({
@@ -118,6 +139,7 @@ def run_setting(
                     "runtime_s": runtime, "seed": seed,
                     "xpo_level": info.get("x", np.nan),
                     "n_samples": S if method in ("NPO", "XPO") else np.nan,
+                    "mf_fit": mf_fit,
                 })
 
     return pd.DataFrame(rows, columns=RESULT_COLUMNS + EXTRA_COLUMNS)

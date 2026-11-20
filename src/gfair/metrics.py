@@ -58,6 +58,28 @@ def kendall_tau(sigma: np.ndarray, sigma_u: np.ndarray) -> float:
     return float((np.sign(a[i] - a[j]) * np.sign(b[i] - b[j])).sum() / len(i))
 
 
+# The two metrics below are our extension (A18). They use the member's ratings
+# of the listed items, not the ground-truth list: an item outside the member's
+# top N counts the same for nDCG, P@k, AP and tau whether the member rates it
+# 4.5 or 1, so those metrics cannot see whether a list contains items a member
+# dislikes. Both are "higher is better", so fairness (min) and group utility
+# (mean) apply unchanged.
+
+
+def no_misery_share(sigma: np.ndarray, member_ratings: np.ndarray, threshold: float) -> float:
+    """Share of the group list the member rates at or above `threshold`.
+
+    `member_ratings` holds the member's (filled) ratings of all candidates,
+    indexed by item position. 1 = nothing in the list the member dislikes.
+    """
+    return float((np.asarray(member_ratings)[sigma] >= threshold).mean())
+
+
+def mean_rating(sigma: np.ndarray, member_ratings: np.ndarray) -> float:
+    """The member's mean (filled) rating of the items in the group list, 1 to 5."""
+    return float(np.asarray(member_ratings)[sigma].mean())
+
+
 def fairness(member_utilities: np.ndarray) -> float:
     """Minimum member utility."""
     return float(np.min(member_utilities))

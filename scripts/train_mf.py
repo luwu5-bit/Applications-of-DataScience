@@ -16,7 +16,7 @@ import numpy as np
 
 from gfair.config import DEFAULT_CONFIG, REPO_ROOT, load_config
 from gfair.data import load_ratings, reindex
-from gfair.mf import fill_missing, rmse, train_mf, train_test_split
+from gfair.mf import fill_missing, fit_rng, rmse, train_mf, train_test_split
 
 
 def main() -> None:
@@ -32,7 +32,9 @@ def main() -> None:
     print(f"{len(ratings):,} ratings, {n_users:,} users, {n_items:,} rated items")
 
     # Independent streams for the split and the two fits, all from the global seed.
-    split_rng, check_rng, final_rng = np.random.default_rng(cfg["seed"]).spawn(3)
+    # The final fit is MF fit 0 (A15); fit_rng(seed, 0) is the third spawned stream.
+    split_rng, check_rng, _ = np.random.default_rng(cfg["seed"]).spawn(3)
+    final_rng = fit_rng(cfg["seed"], 0)
 
     t0 = time.perf_counter()
     train, test = train_test_split(ratings, mf["test_fraction"], split_rng)

@@ -6,7 +6,9 @@ from gfair.metrics import (
     fairness,
     group_utility,
     kendall_tau,
+    mean_rating,
     ndcg_at_k,
+    no_misery_share,
     precision_at_k,
 )
 
@@ -64,3 +66,24 @@ def test_fairness_and_group_utility():
     u = np.array([0.2, 0.5, 0.8])
     assert fairness(u) == pytest.approx(0.2)
     assert group_utility(u) == pytest.approx(0.5)
+
+
+def test_no_misery_share_and_mean_rating():
+    ratings = np.array([5.0, 1.0, 3.0, 2.9, 4.0])   # member's ratings of 5 candidates
+    sigma = np.array([0, 1, 2, 3])
+    # 5 and 3 are fine (3 is not below the threshold), 1 and 2.9 are disliked.
+    assert no_misery_share(sigma, ratings, 3.0) == 0.5
+    assert mean_rating(sigma, ratings) == pytest.approx((5 + 1 + 3 + 2.9) / 4)
+    assert no_misery_share(np.array([0, 4]), ratings, 3.0) == 1.0
+
+
+def test_rating_metrics_see_what_top_n_metrics_miss():
+    # Both lists miss the member's top 1 (item 0); P@1 cannot tell them apart,
+    # the rating-based metrics can.
+    ratings = np.array([5.0, 4.5, 1.0])
+    truth = np.array([0])
+    liked, hated = np.array([1]), np.array([2])
+    assert precision_at_k(liked, truth, 1) == precision_at_k(hated, truth, 1) == 0.0
+    assert no_misery_share(liked, ratings, 3.0) == 1.0
+    assert no_misery_share(hated, ratings, 3.0) == 0.0
+    assert mean_rating(liked, ratings) > mean_rating(hated, ratings)

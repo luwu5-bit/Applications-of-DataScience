@@ -19,6 +19,51 @@ def lm(preds: np.ndarray, N: int) -> np.ndarray:
     return np.argsort(-preds.min(axis=0), kind="stable")[:N]
 
 
+def mul(preds: np.ndarray, N: int) -> np.ndarray:
+    """Multiplicative: top-N by the product of member ratings (A19).
+
+    Computed as the sum of logs, which gives the same order and cannot
+    overflow; ratings are at least 1 (A9).
+    """
+    return np.argsort(-np.log(preds).sum(axis=0), kind="stable")[:N]
+
+
+def max_pleasure(preds: np.ndarray, N: int) -> np.ndarray:
+    """MAX (maximum pleasure): top-N by the highest member rating."""
+    return np.argsort(-preds.max(axis=0), kind="stable")[:N]
+
+
+def borda(ranks: np.ndarray, N: int) -> np.ndarray:
+    """BORDA: top-N by mean rank over members (lower is better; A19).
+
+    `ranks` is the (items x m) matrix from pareto.rank_matrix, with tied
+    average ranks (A4). Ties: lower position first.
+    """
+    return np.argsort(ranks.mean(axis=1), kind="stable")[:N]
+
+
+def med(ranks: np.ndarray, N: int) -> np.ndarray:
+    """MED: top-N by median rank over members (lower is better; A19)."""
+    return np.argsort(np.median(ranks, axis=1), kind="stable")[:N]
+
+
+def awm(preds: np.ndarray, N: int, threshold: float) -> tuple[np.ndarray, dict]:
+    """Average without misery (Masthoff): top-N by mean rating among the items
+    that no member rates below `threshold` (A16).
+
+    If fewer than N items are free of misery, the list is filled with the items
+    that the fewest members rate below the threshold, again by mean rating
+    (A17). With at least N misery-free items this is exactly plain AWM.
+    Ties: lower position first, as in AVG.
+
+    Returns (sigma, info) with info = {"pool_size": number of misery-free items}.
+    """
+    n_miserable = (preds < threshold).sum(axis=0)
+    # lexsort: last key is the primary one.
+    order = np.lexsort((np.arange(preds.shape[1]), -preds.mean(axis=0), n_miserable))
+    return order[:N], {"pool_size": int((n_miserable == 0).sum())}
+
+
 def monte_carlo_counts(
     ranks: np.ndarray,
     N: int,

@@ -13,6 +13,7 @@ mf:                           # biased MF trained with ALS (own numpy code); see
   reg: 0.06                   # ridge penalty, scaled by each user's / item's number of ratings
   clip: [1.0, 5.0]            # filled-in predictions are clipped to the rating scale (A9)
   test_fraction: 0.1          # hold-out only for the one-off RMSE sanity check
+  n_fits: 20                  # MF fits with different random starts; results are averaged over them (A15)
 
 n_candidates: 200             # random candidate movies per group
 n_groups: 100                 # groups per setting
@@ -22,11 +23,17 @@ monte_carlo:
   n_samples: 10000            # S
   batch_size: 1000            # weight vectors scored per batch (S x items matrix)
 
-methods: [AVG, LM, NPO, XPO]  # optional later: MUL, MAX, BORDA
+# AVG, LM, MUL, MAX, BORDA, MED, NPO, XPO as in the paper; AWM = average without misery (extension).
+# Only NPO and XPO draw random numbers, so the list can be extended without changing their results.
+methods: [AVG, LM, MUL, MAX, BORDA, MED, AWM, NPO, XPO]
+
+awm:
+  threshold: 3.0              # a member rating below this is "misery" (A16)
 
 metrics:
   ndcg_ks: [1, 5, 10, 20]     # the primary metric is nDCG@20
   precision_ks: [1, 5, 10, 20]
+  misery_threshold: 3.0       # rating-based metrics (extension, A18): a rating below this = disliked
 
 experiments:
   E1:                         # core: Tables 1/2
